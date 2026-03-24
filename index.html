@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ocean Fishooter — Media Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0b0c16;--s1:#111225;--s2:#16182e;--bd:rgba(255,255,255,0.05);--t:#e8eaf2;--t2:#a8adc4;--t3:#6e7394;--red:#ef4f5f;--grn:#22c55e;--blu:#3b8bff;--org:#f59e0b}
+body{background:var(--bg);color:var(--t);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',sans-serif;font-size:13px;line-height:1.55}
+.wrap{max-width:960px;margin:0 auto;padding:0 16px}
+.hdr{padding:20px 0 0}
+.hdr h1{font-size:15px;font-weight:700}
+.hdr small{font-size:10px;color:var(--t3);display:block;margin-top:2px}
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--bd);overflow-x:auto}
+.tabs button{padding:11px 16px;border:none;cursor:pointer;font-size:11.5px;font-weight:600;background:transparent;color:var(--t3);border-bottom:2px solid transparent;white-space:nowrap;transition:.12s}
+.tabs button.on{color:var(--t)}
+.pl{display:inline-flex;gap:1px;background:rgba(255,255,255,0.03);border-radius:5px;padding:2px}
+.pl button{padding:3px 9px;border-radius:3px;border:none;cursor:pointer;font-size:10px;font-weight:500;background:transparent;color:var(--t3)}
+.pl button.on{background:rgba(255,255,255,0.08);color:var(--t)}
+.pg{padding:20px 0;display:none}.pg.on{display:block}
+.kstrip{display:flex;gap:1px;background:var(--s1);border-radius:8px;overflow:hidden;margin-bottom:16px}
+.kstrip .ki{flex:1;padding:12px 14px;text-align:center}
+.kstrip .ki:not(:last-child){border-right:1px solid var(--bd)}
+.kstrip .kl{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:3px}
+.kstrip .kv{font-size:19px;font-weight:700}
+.kstrip .ks{font-size:10px;margin-top:1px}
+.cd{background:var(--s1);border:1px solid var(--bd);border-radius:8px;padding:14px 16px;margin-bottom:14px}
+.cd .ct{font-size:12px;font-weight:600;color:var(--t2);margin-bottom:10px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+@media(max-width:700px){.g2{grid-template-columns:1fr}}
+.alert{border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:11.5px;line-height:1.7}
+.alert.warn{background:rgba(239,79,95,0.06);border:1px solid rgba(239,79,95,0.15)}
+.alert .ah{font-weight:700;margin-bottom:4px;color:var(--red)}
+.alert li{color:var(--t2);margin-bottom:2px}
+.alert li b{color:var(--t);font-weight:600}
+.alert .act{color:var(--org);font-weight:600;font-size:10.5px}
+.tw{overflow-x:auto;border-radius:6px;border:1px solid var(--bd)}
+.tw table{width:100%;border-collapse:collapse;font-size:11px}
+.tw th{padding:8px 10px;text-align:left;font-size:9px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid rgba(255,255,255,0.08);background:var(--s2);position:sticky;top:0;z-index:1}
+.tw td{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,0.025);font-variant-numeric:tabular-nums}
+.tw tr:hover{background:rgba(255,255,255,0.015)}
+.tw tr.w{background:rgba(239,79,95,0.035)}
+.camp-row{cursor:pointer}
+.camp-row td:first-child::before{content:'\25B8';margin-right:6px;font-size:9px;color:var(--t3);transition:.15s;display:inline-block}
+.camp-row.open td:first-child::before{transform:rotate(90deg)}
+.sub-rows{display:none}.sub-rows.open{display:table-row-group}
+.sub-rows td{padding-left:28px;font-size:10.5px;background:rgba(255,255,255,0.01)}
+.tag{font-size:8.5px;font-weight:700;padding:2px 5px;border-radius:3px;display:inline-block;margin:0 1px}
+.tag.r{background:rgba(239,79,95,0.1);color:var(--red)}.tag.g{background:rgba(34,197,94,0.1);color:var(--grn)}.tag.b{background:rgba(59,139,255,0.1);color:var(--blu)}.tag.o{background:rgba(245,158,11,0.1);color:var(--org)}
+.os{font-size:8.5px;padding:1px 5px;border-radius:3px;font-weight:600}
+.os.i{background:rgba(59,139,255,0.1);color:#60a5fa}.os.a{background:rgba(34,197,94,0.1);color:#4ade80}
+.legend{display:flex;gap:10px;flex-wrap:wrap;padding:6px 0;font-size:10px;color:var(--t3)}
+.legend i{display:inline-block;width:10px;height:2.5px;border-radius:2px;margin-right:3px;vertical-align:middle}
+.ft{font-size:9px;color:var(--t3);padding:14px 0;border-top:1px solid var(--bd);margin-top:8px;text-align:center}
+#loadingScreen{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999}
+#loadingScreen h2{font-size:16px;margin-bottom:12px}
+#loadingScreen .bar{width:240px;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden}
+#loadingScreen .fill{height:100%;background:var(--blu);border-radius:2px;transition:width .3s}
+#loadingScreen .status{font-size:11px;color:var(--t3);margin-top:10px;min-height:16px}
+#loadingScreen .err{color:var(--red);margin-top:10px;font-size:12px;max-width:400px;text-align:center;line-height:1.6}
+</style>
+</head>
+<body>
+
+<!-- Loading screen -->
+<div id="loadingScreen">
+  <h2>Ocean Fishooter Dashboard</h2>
+  <div class="bar"><div class="fill" id="loadBar" style="width:0%"></div></div>
+  <div class="status" id="loadStatus">正在連線 Google 雲端...</div>
+</div>
+
+<div class="wrap" id="app" style="display:none">
+<div class="hdr">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+    <div><h1>Ocean Fishooter</h1><small id="headerInfo">媒體投放儀表板</small></div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <div class="pl" id="trP">
+        <button data-r="1d">昨日</button><button data-r="3d">近3天</button>
+        <button data-r="7d" class="on">近7天</button><button data-r="30d">近30天</button>
+      </div>
+      <button onclick="loadData()" style="background:rgba(59,139,255,0.1);color:var(--blu);border:1px solid rgba(59,139,255,0.2);border-radius:5px;padding:3px 10px;cursor:pointer;font-size:10px;font-weight:600">↻ 重新載入</button>
+    </div>
+  </div>
+</div>
+<div class="tabs" id="tabs"></div>
+<div id="pages"></div>
+<div class="ft">CPI = Spend ÷ Installs ｜ 資料即時讀取自 Google 雲端 ｜ Dashboard by Claude</div>
+</div>
+
+<!-- Config loaded from separate file -->
+<script src="config.js"></script>
+<script>
+// ===== CONFIG =====
+const CFG = window.DASHBOARD_CONFIG || {};
+const API_KEY = CFG.GOOGLE_API_KEY || '';
+const FOLDER_ID = CFG.FOLDER_ID || '';
+
+if(!API_KEY || !FOLDER_ID){
+  document.getElementById('loadStatus').innerHTML = '';
+  document.getElementById('loadingScreen').querySelector('.bar').style.display='none';
+  document.getElementById('loadingScreen').innerHTML += '<div class="err">⚠️ 尚未設定 API Key 或資料夾 ID。<br>請建立 <code>config.js</code> 檔案，內容：<br><br><code>window.DASHBOARD_CONFIG = {<br>&nbsp;&nbsp;GOOGLE_API_KEY: "你的KEY",<br>&nbsp;&nbsp;FOLDER_ID: "你的資料夾ID"<br>};</code></div>';
+}
+
+// ===== MEDIA DETECTION =====
+const MEDIA_RULES = [
+  {key:'meta', name:'Meta', color:'#1877F2', match: n => /meta/i.test(n)},
+  {key:'google', name:'Google', color:'#34A853', match: n => /google/i.test(n)},
+  {key:'applovin', name:'AppLovin', color:'#FF6B35', match: n => /applovin/i.test(n)},
+  {key:'unity', name:'Unity', color:'#E84855', match: n => /unity/i.test(n)},
+  {key:'asa', name:'ASA', color:'#7B2D8E', match: n => /\basa\b/i.test(n)},
+];
+
+// Column mapping per media (auto-detect from headers)
+const COL_MAPS = {
+  meta: {date:['分析報告開始'],campaign:['行銷活動名稱'],creative:['廣告名稱'],spend:['Spend','spend'],installs:['Install','install','installs'],imp:['Imp','imp','impressions'],clicks:['Clicks','clicks']},
+  google: {date:['日期','Date'],campaign:['廣告活動','Campaign'],adgroup:['廣告群組','Ad Group'],spend:['Spend','spend'],installs:['Install','install','installs'],imp:['Imp','imp','impressions'],clicks:['Clicks','clicks']},
+  applovin: {date:['Date'],campaign:['Campaign name'],spend:['Spend'],installs:['Installs'],imp:['Impressions'],clicks:['Clicks'],d0rev:['D0 total rev'],d0roas:['D0 total ROAS']},
+  unity: {date:['Time','Date'],campaign:['Campaign Name'],creative:['Creative Pack Name'],spend:['Spend'],installs:['Installs'],imp:['Starts','Impressions'],clicks:['Clicks']},
+  asa: {date:['日期','日期','Date'],campaign:['广告系列名称','Campaign'],keyword:['关键词','Keyword','keyword'],spend:['Spend','spend','支出'],installs:['Install','installs','安装次数（总计）','安裝次數（總計）'],imp:['Imp','imp','展示次数','展示次數'],clicks:['Clicks','clicks','点击次数','點擊次數']},
+};
+
+function parseOS(campaignName, mediaKey){
+  const cn = (campaignName||'').toUpperCase();
+  if(mediaKey==='asa') return 'iOS';
+  if(cn.includes('IOS')) return 'iOS';
+  if(cn.includes('ANDROID')||cn.includes('_AND_')) return 'Android';
+  if(cn.includes('STEAM')||cn.includes('_PC')) return 'PC';
+  return '?';
+}
+
+// ===== GOOGLE DRIVE API =====
+async function listFiles(){
+  const url = `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+trashed=false&key=${API_KEY}&fields=files(id,name,mimeType)&pageSize=100`;
+  const res = await fetch(url);
+  if(!res.ok) throw new Error('Drive API 錯誤: ' + res.status + ' - 請確認 API Key 和資料夾權限');
+  const data = await res.json();
+  return data.files || [];
+}
+
+async function downloadFile(fileId, mimeType){
+  // For Google Sheets, export as xlsx; for regular files, download directly
+  let url;
+  if(mimeType === 'application/vnd.google-apps.spreadsheet'){
+    url = `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=application/vnd.openxmlformats-officedocument.spreadsheetml.sheet&key=${API_KEY}`;
+  } else {
+    url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${API_KEY}`;
+  }
+  const res = await fetch(url);
+  if(!res.ok) throw new Error('下載失敗: ' + res.status);
+  return await res.arrayBuffer();
+}
+
+function findCol(headers, aliases){
+  for(const a of aliases){
+    const idx = headers.findIndex(h => h && h.toString().trim() === a);
+    if(idx >= 0) return idx;
+  }
+  return -1;
+}
+
+function parseSheet(data, mediaKey, fileName){
+  const wb = XLSX.read(data, {type:'array', cellDates:true});
+  const rows = [];
+  
+  for(const sn of wb.SheetNames){
+    let sheet = wb.Sheets[sn];
+    let json = XLSX.utils.sheet_to_json(sheet, {header:1, defval:null, raw:false});
+    if(!json.length) continue;
+    
+    // For ASA files that have metadata rows, find actual header
+    let headerIdx = 0;
+    const colMap = COL_MAPS[mediaKey];
+    if(!colMap) continue;
+    
+    // Try to find header row (look for date column)
+    for(let i=0; i<Math.min(10, json.length); i++){
+      const row = json[i];
+      if(!row) continue;
+      const hasDate = colMap.date.some(d => row.some(c => c && c.toString().trim() === d));
+      if(hasDate){ headerIdx = i; break; }
+    }
+    
+    const headers = json[headerIdx].map(h => h ? h.toString().trim() : '');
+    const dateIdx = findCol(headers, colMap.date);
+    const campIdx = findCol(headers, colMap.campaign||[]);
+    const spendIdx = findCol(headers, colMap.spend);
+    const instIdx = findCol(headers, colMap.installs);
+    const impIdx = findCol(headers, colMap.imp);
+    const clickIdx = findCol(headers, colMap.clicks);
+    const crIdx = findCol(headers, colMap.creative||[]);
+    const agIdx = findCol(headers, colMap.adgroup||[]);
+    const kwIdx = findCol(headers, colMap.keyword||[]);
+    const d0revIdx = findCol(headers, colMap.d0rev||[]);
+    
+    if(dateIdx < 0 || spendIdx < 0) continue;
+    
+    for(let i=headerIdx+1; i<json.length; i++){
+      const r = json[i];
+      if(!r || !r[dateIdx]) continue;
+      
+      // Parse date
+      let dateStr = r[dateIdx];
+      if(dateStr instanceof Date){
+        dateStr = fmt(dateStr);
+      } else {
+        dateStr = String(dateStr).trim();
+        // Try various formats
+        const parsed = parseDate(dateStr);
+        if(!parsed) continue;
+        dateStr = parsed;
+      }
+      
+      const spend = parseFloat(r[spendIdx]) || 0;
+      const installs = parseFloat(r[instIdx]) || 0;
+      const imp = impIdx>=0 ? (parseFloat(r[impIdx]) || 0) : 0;
+      const clicks = clickIdx>=0 ? (parseFloat(r[clickIdx]) || 0) : 0;
+      const campaign = campIdx>=0 ? String(r[campIdx]||'').trim() : fileName;
+      const creative = crIdx>=0 ? String(r[crIdx]||'').trim() : '';
+      const adgroup = agIdx>=0 ? String(r[agIdx]||'').trim() : '';
+      const keyword = kwIdx>=0 ? String(r[kwIdx]||'').trim() : '';
+      const d0rev = d0revIdx>=0 ? (parseFloat(r[d0revIdx]) || 0) : 0;
+      const os = parseOS(campaign, mediaKey);
+      
+      rows.push({date:dateStr, campaign, os, spend, installs, imp, clicks, creative, adgroup, keyword, d0rev});
+    }
+  }
+  return rows;
+}
+
+function fmt(d){
+  const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+dd;
+}
+
+function parseDate(s){
+  // YYYY-MM-DD
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  // MM/DD/YYYY
+  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(m) return m[3]+'-'+m[1].padStart(2,'0')+'-'+m[2].padStart(2,'0');
+  // DD/MM/YYYY
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(m && parseInt(m[1])>12) return m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');
+  // Try Date parse
+  const d = new Date(s);
+  if(!isNaN(d)) return fmt(d);
+  return null;
+}
+
+// ===== DATA STORE =====
+let DATA = {}; // {meta: [{date,campaign,os,spend,installs,...}], google: [...], ...}
+
+async function loadData(){
+  const ls = document.getElementById('loadingScreen');
+  const bar = document.getElementById('loadBar');
+  const status = document.getElementById('loadStatus');
+  ls.style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  bar.style.width = '5%';
+  status.textContent = '正在讀取 Google 雲端資料夾...';
+  
+  try{
+    const files = await listFiles();
+    bar.style.width = '15%';
+    status.textContent = `找到 ${files.length} 個檔案，開始下載...`;
+    
+    DATA = {};
+    MEDIA_RULES.forEach(m => DATA[m.key] = []);
+    
+    const mediaFiles = files.filter(f => {
+      const ext = f.name.split('.').pop().toLowerCase();
+      return ['xlsx','xls','csv'].includes(ext) || f.mimeType === 'application/vnd.google-apps.spreadsheet';
+    });
+    
+    for(let i=0; i<mediaFiles.length; i++){
+      const f = mediaFiles[i];
+      const pct = 15 + (i/mediaFiles.length)*80;
+      bar.style.width = pct+'%';
+      status.textContent = `下載中 (${i+1}/${mediaFiles.length}): ${f.name}`;
+      
+      const media = MEDIA_RULES.find(m => m.match(f.name));
+      if(!media){ continue; }
+      
+      try{
+        const buf = await downloadFile(f.id, f.mimeType);
+        const rows = parseSheet(buf, media.key, f.name);
+        DATA[media.key].push(...rows);
+      }catch(e){
+        console.warn('Failed to parse', f.name, e);
+      }
+    }
+    
+    bar.style.width = '100%';
+    status.textContent = '資料載入完成！';
+    
+    // Find date range
+    let allDates = [];
+    Object.values(DATA).forEach(arr => arr.forEach(r => { if(r.date) allDates.push(r.date); }));
+    allDates.sort();
+    const maxDate = allDates[allDates.length-1] || 'N/A';
+    const minDate = allDates[0] || 'N/A';
+    document.getElementById('headerInfo').textContent = `媒體投放儀表板 ｜ 資料期間 ${minDate} ~ ${maxDate} ｜ CPI = Spend ÷ Installs`;
+    
+    setTimeout(()=>{
+      ls.style.display = 'none';
+      document.getElementById('app').style.display = '';
+      initDashboard();
+    }, 300);
+    
+  }catch(e){
+    bar.style.width = '0%';
+    status.innerHTML = '<span style="color:var(--red)">❌ '+e.message+'</span>';
+  }
+}
+
+// ===== DASHBOARD LOGIC (same as static version) =====
+const MC={Meta:'#1877F2',Google:'#34A853',AppLovin:'#FF6B35',Unity:'#E84855',ASA:'#7B2D8E'};
+let tab='ov',tR='7d',CH={};
+const fN=(n,d=0)=>n==null?'\u2014':n.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const f$=(n,d=2)=>n==null?'\u2014':'$'+fN(n,d);
+const fP=n=>n==null?'':((n>0?'+':'')+n.toFixed(1)+'%');
+const osH=o=>o==='iOS'?'<span class="os i">iOS</span>':o==='Android'?'<span class="os a">AND</span>':'';
+const chC=n=>n==null?'var(--t3)':n>0?'var(--red)':'var(--grn)';
+function dc(id){if(CH[id]){CH[id].destroy();delete CH[id]}}
+Chart.defaults.color='#6e7394';Chart.defaults.borderColor='rgba(255,255,255,0.03)';
+Chart.defaults.font.family="-apple-system,sans-serif";Chart.defaults.font.size=10;Chart.defaults.plugins.legend.display=false;
+function wow(c,p){return c!=null&&p!=null&&p>0?((c-p)/p*100):null}
+
+function getMaxDate(){
+  let mx='';
+  Object.values(DATA).forEach(arr=>arr.forEach(r=>{if(r.date>mx)mx=r.date}));
+  return mx;
+}
+
+function getDateRange(){
+  const days=tR==='1d'?1:tR==='3d'?3:tR==='7d'?7:30;
+  const mx=getMaxDate();
+  if(!mx) return{start:'',end:'',pStart:'',pEnd:'',days,label:'無資料',pLabel:''};
+  const end=new Date(mx+'T00:00:00');
+  const start=new Date(end);start.setDate(start.getDate()-days+1);
+  const prevEnd=new Date(start);prevEnd.setDate(prevEnd.getDate()-1);
+  const prevStart=new Date(prevEnd);prevStart.setDate(prevStart.getDate()-days+1);
+  const f=d=>{const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');return y+'-'+m+'-'+dd};
+  const label=days===1?f(end):(f(start)+' ~ '+f(end));
+  const pLabel=days===1?f(prevEnd):(f(prevStart)+' ~ '+f(prevEnd));
+  return{start:f(start),end:f(end),pStart:f(prevStart),pEnd:f(prevEnd),days,label,pLabel};
+}
+
+function fltD(arr,s,e){return arr.filter(r=>r.date>=s&&r.date<=e)}
+
+function toggleSub(el){
+  const idx=el.dataset.idx;el.classList.toggle('open');
+  const sub=document.querySelector('.sub-rows[data-for="'+idx+'"]');
+  if(sub)sub.classList.toggle('open');
+}
+
+function initDashboard(){
+  // Build tabs
+  const found = MEDIA_RULES.filter(m => DATA[m.key]?.length > 0);
+  let tabsH = '<button data-t="ov" class="on" style="--c:var(--blu)">總覽</button>';
+  found.forEach(m => tabsH += '<button data-t="'+m.key+'" style="--c:'+m.color+'">'+m.name+'</button>');
+  document.getElementById('tabs').innerHTML = tabsH;
+  
+  let pagesH = '<div class="pg on" id="p-ov"></div>';
+  found.forEach(m => pagesH += '<div class="pg" id="p-'+m.key+'"></div>');
+  document.getElementById('pages').innerHTML = pagesH;
+  
+  // Bind events
+  document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>show(b.dataset.t)));
+  document.querySelectorAll('#trP button').forEach(b=>b.addEventListener('click',()=>{
+    tR=b.dataset.r;document.querySelectorAll('#trP button').forEach(x=>x.classList.toggle('on',x===b));show(tab);
+  }));
+  
+  show('ov');
+}
+
+function show(t){
+  tab=t;
+  document.querySelectorAll('.tabs button').forEach(b=>{b.classList.toggle('on',b.dataset.t===t);b.style.borderBottomColor=b.classList.contains('on')?(b.style.getPropertyValue('--c')||'var(--blu)'):'transparent'});
+  document.querySelectorAll('.pg').forEach(p=>p.classList.toggle('on',p.id==='p-'+t));
+  if(t==='ov') renderOV();
+  else renderMedia(t);
+}
+
+function renderOV(){
+  const dr=getDateRange();
+  const totals={},prevTotals={};
+  for(const m of MEDIA_RULES){
+    const arr=DATA[m.key]||[];
+    if(!arr.length) continue;
+    const curr=fltD(arr,dr.start,dr.end),prev=fltD(arr,dr.pStart,dr.pEnd);
+    totals[m.name]={spend:curr.reduce((s,r)=>s+r.spend,0),inst:curr.reduce((s,r)=>s+r.installs,0)};
+    prevTotals[m.name]={spend:prev.reduce((s,r)=>s+r.spend,0),inst:prev.reduce((s,r)=>s+r.installs,0)};
+  }
+  const tS=Object.values(totals).reduce((s,v)=>s+v.spend,0);
+  const tI=Object.values(totals).reduce((s,v)=>s+v.inst,0);
+  const pS=Object.values(prevTotals).reduce((s,v)=>s+v.spend,0);
+  const pI=Object.values(prevTotals).reduce((s,v)=>s+v.inst,0);
+  const cpi=tI>0?tS/tI:null,pcpi=pI>0?pS/pI:null;
+  
+  let h='<div style="font-size:11px;color:var(--t3);margin-bottom:12px">'+dr.label+(dr.days===1?' (昨日)':' ('+dr.days+'天)')+' ｜ 對比前期：'+dr.pLabel+'</div>';
+  h+='<div class="kstrip"><div class="ki"><div class="kl">CPI</div><div class="kv">'+f$(cpi)+'</div><div class="ks" style="color:'+chC(wow(cpi,pcpi))+'">'+fP(wow(cpi,pcpi))+'</div></div>';
+  h+='<div class="ki"><div class="kl">花費</div><div class="kv">'+f$(tS,0)+'</div></div>';
+  h+='<div class="ki"><div class="kl">安裝</div><div class="kv">'+fN(tI)+'</div></div></div>';
+  
+  // Daily chart
+  const allDates=[];
+  for(const m of MEDIA_RULES){fltD(DATA[m.key]||[],dr.start,dr.end).forEach(r=>{if(!allDates.includes(r.date))allDates.push(r.date)})}
+  allDates.sort();
+  if(allDates.length>1) h+='<div class="g2"><div class="cd"><div class="ct">每日 CPI</div><canvas id="ov_cpi"></canvas></div><div class="cd"><div class="ct">每日花費</div><canvas id="ov_spend"></canvas></div></div>';
+  
+  // Table
+  const mns=MEDIA_RULES.filter(m=>totals[m.name]?.spend>0);
+  h+='<div class="tw" style="border:none"><table><thead><tr><th>媒體</th><th style="text-align:right">花費</th><th style="text-align:right">安裝</th><th style="text-align:right">CPI</th><th style="text-align:right">vs前期</th><th>佔比</th></tr></thead><tbody>';
+  mns.sort((a,b)=>(totals[b.name]?.spend||0)-(totals[a.name]?.spend||0)).forEach(m=>{
+    const c=totals[m.name],p=prevTotals[m.name];
+    const cp=c.inst>0?c.spend/c.inst:null,pp=p?.inst>0?p.spend/p.inst:null,ch=wow(cp,pp);
+    h+='<tr><td style="font-weight:600;color:'+m.color+'">'+m.name+'</td><td style="text-align:right">'+f$(c.spend,0)+'</td><td style="text-align:right">'+fN(c.inst)+'</td><td style="text-align:right;font-weight:700">'+f$(cp)+'</td><td style="text-align:right;color:'+chC(ch)+'">'+fP(ch)+'</td>';
+    h+='<td><div style="display:flex;align-items:center;gap:6px"><div style="width:80px;height:4px;background:rgba(255,255,255,0.04);border-radius:2px"><div style="height:100%;width:'+(tS>0?(c.spend/tS*100):0)+'%;background:'+m.color+';border-radius:2px"></div></div><span style="font-size:9px;color:var(--t3)">'+(tS>0?(c.spend/tS*100).toFixed(0):0)+'%</span></div></td></tr>';
+  });
+  h+='</tbody></table></div>';
+  document.getElementById('p-ov').innerHTML=h;
+  
+  if(allDates.length>1){
+    const labels=allDates.map(d=>d.slice(5));
+    const cpiDS=mns.map(m=>({label:m.name,borderColor:m.color,backgroundColor:m.color,
+      data:allDates.map(dt=>{const rows=fltD(DATA[m.key],dt,dt);const s=rows.reduce((a,r)=>a+r.spend,0),i=rows.reduce((a,r)=>a+r.installs,0);return i>0?s/i:null}),
+      tension:.35,pointRadius:1,borderWidth:1.8,spanGaps:true}));
+    dc('ov_cpi');CH.ov_cpi=new Chart(document.getElementById('ov_cpi'),{type:'line',data:{labels,datasets:cpiDS},
+      options:{responsive:true,interaction:{mode:'index',intersect:false},plugins:{tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': $'+ctx.parsed.y?.toFixed(2)}}},scales:{y:{beginAtZero:true,ticks:{callback:v=>'$'+v}},x:{grid:{display:false}}}}});
+    const spendDS=mns.map(m=>({label:m.name,data:allDates.map(dt=>fltD(DATA[m.key],dt,dt).reduce((a,r)=>a+r.spend,0)),backgroundColor:m.color}));
+    dc('ov_spend');CH.ov_spend=new Chart(document.getElementById('ov_spend'),{type:'bar',data:{labels,datasets:spendDS},
+      options:{responsive:true,scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,ticks:{callback:v=>'$'+(v/1000).toFixed(0)+'k'}}},interaction:{mode:'index'}}});
+  }
+}
+
+function renderMedia(key){
+  const dr=getDateRange();
+  const mr=MEDIA_RULES.find(m=>m.key===key);
+  const arr=DATA[key]||[];
+  const curr=fltD(arr,dr.start,dr.end),prev=fltD(arr,dr.pStart,dr.pEnd);
+  
+  // Group by campaign
+  const camps={},prevCamps={};
+  curr.forEach(r=>{
+    const c=r.campaign;
+    if(!camps[c])camps[c]={os:r.os,spend:0,inst:0,imp:0,clicks:0,d0rev:0,daily:{},creatives:{},adgroups:{},keywords:{}};
+    camps[c].spend+=r.spend;camps[c].inst+=r.installs;camps[c].d0rev+=r.d0rev||0;
+    if(!camps[c].daily[r.date])camps[c].daily[r.date]={spend:0,inst:0};
+    camps[c].daily[r.date].spend+=r.spend;camps[c].daily[r.date].inst+=r.installs;
+    if(r.creative){const k=r.creative;if(!camps[c].creatives[k])camps[c].creatives[k]={spend:0,inst:0};camps[c].creatives[k].spend+=r.spend;camps[c].creatives[k].inst+=r.installs}
+    if(r.adgroup){const k=r.adgroup;if(!camps[c].adgroups[k])camps[c].adgroups[k]={spend:0,inst:0};camps[c].adgroups[k].spend+=r.spend;camps[c].adgroups[k].inst+=r.installs}
+    if(r.keyword){const k=r.keyword;if(!camps[c].keywords[k])camps[c].keywords[k]={spend:0,inst:0};camps[c].keywords[k].spend+=r.spend;camps[c].keywords[k].inst+=r.installs}
+  });
+  prev.forEach(r=>{if(!prevCamps[r.campaign])prevCamps[r.campaign]={spend:0,inst:0};prevCamps[r.campaign].spend+=r.spend;prevCamps[r.campaign].inst+=r.installs});
+  
+  const sorted=Object.entries(camps).sort((a,b)=>b[1].spend-a[1].spend);
+  const totalS=sorted.reduce((s,[,d])=>s+d.spend,0);
+  const totalI=sorted.reduce((s,[,d])=>s+d.inst,0);
+  const cpi=totalI>0?totalS/totalI:null;
+  const pTotalI=Object.values(prevCamps).reduce((s,v)=>s+v.inst,0);
+  const pTotalS=Object.values(prevCamps).reduce((s,v)=>s+v.spend,0);
+  const pcpi=pTotalI>0?pTotalS/pTotalI:null;
+  
+  // Alerts
+  const alerts=[];
+  sorted.forEach(([cn,d])=>{
+    const cc=d.inst>0?d.spend/d.inst:null;
+    const pc=prevCamps[cn];const pp=pc?.inst>0?pc.spend/pc.inst:null;const ch=wow(cc,pp);
+    if(ch!=null&&ch>25&&d.spend>30)alerts.push('<li><b>'+cn+'</b> '+osH(d.os)+' CPI '+f$(pp)+'→'+f$(cc)+' (<span style="color:var(--red)">'+fP(ch)+'</span>) <span class="act">→ 檢查素材疲勞</span></li>');
+    if(d.spend>50&&d.inst===0)alerts.push('<li><b>'+cn+'</b> '+osH(d.os)+' 花費 '+f$(d.spend,0)+' / 0 安裝 <span class="act">→ 建議暫停</span></li>');
+  });
+  
+  let h='<div style="font-size:11px;color:var(--t3);margin-bottom:12px">'+dr.label+(dr.days===1?' (昨日)':' ('+dr.days+'天)')+' ｜ 對比前期：'+dr.pLabel+'</div>';
+  if(alerts.length) h+='<div class="alert warn"><div class="ah">⚠ 需要注意</div><ul style="list-style:none;padding:0;margin:0">'+alerts.join('')+'</ul></div>';
+  
+  h+='<div class="kstrip"><div class="ki"><div class="kl">CPI</div><div class="kv" style="color:'+mr.color+'">'+f$(cpi)+'</div><div class="ks" style="color:'+chC(wow(cpi,pcpi))+'">'+fP(wow(cpi,pcpi))+' vs前期</div></div>';
+  h+='<div class="ki"><div class="kl">花費</div><div class="kv">'+f$(totalS,0)+'</div></div>';
+  h+='<div class="ki"><div class="kl">安裝</div><div class="kv">'+fN(totalI)+'</div></div>';
+  if(key==='applovin'){const rev=sorted.reduce((s,[,d])=>s+d.d0rev,0);const roas=totalS>0?(rev/totalS*100):null;
+    h+='<div class="ki"><div class="kl">D0 ROAS</div><div class="kv" style="color:var(--org)">'+(roas!=null?roas.toFixed(1)+'%':'\u2014')+'</div></div>';}
+  h+='</div>';
+  
+  // CPI trend
+  const allDates=[...new Set(curr.map(r=>r.date))].sort();
+  if(allDates.length>1) h+='<div class="cd"><div class="ct">Campaign CPI 日趨勢</div><canvas id="'+key+'_c"></canvas><div class="legend" id="'+key+'_lg"></div></div>';
+  
+  // Campaign table with expandable sub-rows
+  const subType=key==='asa'?'keyword':key==='google'?'adgroup':(key==='meta'||key==='unity')?'creative':null;
+  const subLabel=key==='asa'?'關鍵字':key==='google'?'Ad Group':'素材';
+  
+  h+='<div class="tw"><table><thead><tr><th>Campaign</th><th>OS</th><th style="text-align:right">花費</th><th style="text-align:right">安裝</th><th style="text-align:right">CPI</th><th style="text-align:right">vs前期</th><th>狀態</th></tr></thead>';
+  sorted.forEach(([cn,d],idx)=>{
+    const cc=d.inst>0?d.spend/d.inst:null;
+    const pc=prevCamps[cn];const pp=pc?.inst>0?pc.spend/pc.inst:null;const ch=wow(cc,pp);
+    const subData=subType==='keyword'?d.keywords:subType==='adgroup'?d.adgroups:subType==='creative'?d.creatives:null;
+    const hasSub=subData&&Object.keys(subData).length>0&&Object.values(subData).some(v=>v.spend>0);
+    const isWarn=(ch!=null&&ch>25)||(d.spend>50&&d.inst===0);
+    h+='<tbody><tr class="'+(hasSub?'camp-row ':'')+' '+(isWarn?'w':'')+'" '+(hasSub?'data-idx="'+key+'_'+idx+'" onclick="toggleSub(this)"':'')+'>';
+    h+='<td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600">'+cn+'</td>';
+    h+='<td>'+osH(d.os)+'</td>';
+    h+='<td style="text-align:right">'+f$(d.spend,0)+'</td><td style="text-align:right">'+fN(d.inst)+'</td>';
+    h+='<td style="text-align:right;font-weight:700">'+f$(cc)+'</td>';
+    h+='<td style="text-align:right;color:'+chC(ch)+'">'+fP(ch)+'</td>';
+    h+='<td>';
+    if(ch!=null&&ch>25)h+='<span class="tag r">CPI↑</span>';
+    if(ch!=null&&ch<-15)h+='<span class="tag g">優化中</span>';
+    if(d.spend>50&&d.inst===0)h+='<span class="tag r">無效</span>';
+    h+='</td></tr>';
+    
+    if(hasSub){
+      const avgCpi=cc;
+      h+='<tbody class="sub-rows" data-for="'+key+'_'+idx+'">';
+      h+='<tr><td style="padding-left:28px;font-size:9px;color:var(--t3);font-weight:600">'+subLabel+'</td><td></td><td style="text-align:right;font-size:9px;color:var(--t3)">花費</td><td style="text-align:right;font-size:9px;color:var(--t3)">安裝</td><td style="text-align:right;font-size:9px;color:var(--t3)">CPI</td><td></td><td style="font-size:9px;color:var(--t3)">標記</td></tr>';
+      Object.entries(subData).filter(([,v])=>v.spend>0).sort((a,b)=>b[1].spend-a[1].spend).slice(0,10).forEach(([name,v])=>{
+        const scpi=v.inst>0?v.spend/v.inst:null;
+        const tags=[];
+        if(v.spend>30&&v.inst===0)tags.push('<span class="tag r">高耗無效</span>');
+        if(scpi!=null&&avgCpi&&scpi>avgCpi*1.5&&v.inst>=2)tags.push('<span class="tag r">CPI偏高</span>');
+        if(scpi!=null&&avgCpi&&scpi<avgCpi*0.6&&v.inst>=5)tags.push('<span class="tag g">高效</span>');
+        if(key==='asa'&&scpi!=null&&scpi>4)tags.push('<span class="tag o">建議降CPT</span>');
+        h+='<tr class="'+(tags.some(t=>t.includes('無效')||t.includes('偏高'))?'w':'')+'"><td style="padding-left:28px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--t2)">'+name+'</td><td></td><td style="text-align:right">'+f$(v.spend,0)+'</td><td style="text-align:right">'+fN(v.inst)+'</td><td style="text-align:right;font-weight:600">'+f$(scpi)+'</td><td></td><td>'+tags.join(' ')+'</td></tr>';
+      });
+      h+='</tbody>';
+    }
+    h+='</tbody>';
+  });
+  h+='</table></div>';
+  
+  document.getElementById('p-'+key).innerHTML=h;
+  
+  // Render charts
+  if(allDates.length>1){
+    const labels=allDates.map(d=>d.slice(5));
+    const ds=sorted.filter(([,d])=>d.spend>0).map(([cn,d])=>({
+      label:cn.slice(0,30)+' ('+d.os+')',borderColor:mr.color+(d.os==='Android'?'88':''),backgroundColor:mr.color,
+      data:allDates.map(dt=>{const dd=d.daily[dt];return dd?.inst>0?dd.spend/dd.inst:null}),
+      tension:.35,pointRadius:1.5,borderWidth:1.8,borderDash:d.os==='Android'?[5,3]:[],spanGaps:true
+    }));
+    dc(key+'_c');CH[key+'_c']=new Chart(document.getElementById(key+'_c'),{type:'line',data:{labels,datasets:ds},
+      options:{responsive:true,interaction:{mode:'index',intersect:false},plugins:{tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': $'+ctx.parsed.y?.toFixed(2)}}},
+      scales:{y:{beginAtZero:true,ticks:{callback:v=>'$'+v}},x:{grid:{display:false}}}}});
+    document.getElementById(key+'_lg').innerHTML=ds.map(d=>'<span><i style="background:'+d.borderColor+'"></i>'+d.label+'</span>').join('');
+  }
+}
+
+// Start
+if(API_KEY && FOLDER_ID) loadData();
+</script>
+</body>
+</html>
